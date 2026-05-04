@@ -939,6 +939,8 @@ function connectWS() {
   catch (e) { scheduleReconnect(); return; }
   ws.onopen = () => {
     setTimeout(() => {
+      sendOsc('/fam/start', []);
+      sendOsc('/fam/auto', [state.autoPlay ? 1 : 0]);
       sendOsc('/fam/key', [KEY_MIDI[state.keyIdx]]);
       sendOsc('/fam/mode', [state.mode]);
       sendOsc('/fam/prog', [state.prog]);
