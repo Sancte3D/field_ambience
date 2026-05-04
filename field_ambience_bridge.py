@@ -28,6 +28,8 @@ import asyncio
 import functools
 import json
 import os
+import signal
+import subprocess
 import sys
 import threading
 import time
@@ -58,6 +60,39 @@ REPLY_PORT = 57121
 PICO_VID = 0x2E8A
 PICO_BAUD = 115200
 PICO_RECONNECT_S = 3.0
+
+
+def _release_bridge_ports_if_stale():
+    """Beendet Fremdprozesse, die noch 8765/8080 (TCP) oder 57121 (UDP) halten (alte Bridge)."""
+    pids = set()
+    for spec in (
+        ("TCP", WS_PORT),
+        ("TCP", HTTP_PORT),
+        ("UDP", REPLY_PORT),
+    ):
+        kind, port = spec
+        if kind == "TCP":
+            expr = ["lsof", "-t", "-nP", "-iTCP:%s" % port, "-sTCP:LISTEN"]
+        else:
+            expr = ["lsof", "-t", "-nP", "-iUDP:%s" % port]
+        try:
+            out = subprocess.check_output(expr, stderr=subprocess.DEVNULL, text=True)
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            continue
+        for line in out.split():
+            line = line.strip()
+            if line.isdigit():
+                pids.add(int(line))
+    for pid in pids:
+        if pid == os.getpid():
+            continue
+        try:
+            os.kill(pid, signal.SIGTERM)
+            print(f"[bridge] alter Listener PID {pid} auf einem Bridge-Port beendet.")
+        except (ProcessLookupError, PermissionError):
+            pass
+    time.sleep(0.25)
+
 
 osc_client = udp_client.SimpleUDPClient(SC_HOST, SC_PORT)
 ws_clients = set()
@@ -448,6 +483,7 @@ def start_static_http_server():
 async def main():
     global _main_loop
     _main_loop = asyncio.get_running_loop()
+    _release_bridge_ports_if_stale()
     start_static_http_server()
     start_osc_server()
     start_pico_bridge()
