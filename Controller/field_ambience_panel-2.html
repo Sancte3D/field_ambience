@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Field Ambience — Hardware Panel v29-a (minimal)</title>
+<style>
+
+/* =====================================================================
+   Field Ambience Hardware Panel — v29-a (OP-1 Style Minimal)
+   One encoder + menu navigation + cells with note names.
+   ===================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&display=swap');
+
+:root {
+  --panel-bg:       #0f1012;
+  --panel-surface:  #1a1c1f;
+  --panel-metal:    #2a2d32;
+  --panel-edge:     #3d4147;
+  --panel-deep:     #08090a;
+  --amber:          #e2a63c;
+  --amber-dim:      #8a6525;
+  --amber-glow:     #ffcf7a;
+  --teal:           #5aa9a5;
+  --ink:            #e4e2dd;
+  --ink-dim:        #8d8a83;
+  --ink-faint:      #4a4842;
+  --warn:           #c85a4a;
+  --success:        #6ba266;
+  --oled-bg:        #050607;
+  --oled-ink:       #b4d4c8;
+  --oled-dim:       #4a6a60;
+  --oled-bright:    #e0f4e8;
+  --font-label:     'JetBrains Mono', monospace;
+  --font-serif:     'Cormorant Garamond', serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: var(--panel-deep);
+  color: var(--ink);
+  font-family: var(--font-label);
+  min-height: 100vh;
+  overflow-x: auto;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body {
+  padding: 32px;
+  background-image:
+    radial-gradient(ellipse at top, rgba(226, 166, 60, 0.04) 0%, transparent 60%),
+    repeating-linear-gradient(45deg, transparent 0px, transparent 2px,
+      rgba(255,255,255,0.008) 2px, rgba(255,255,255,0.008) 4px);
+}
+
+/* Mobile-friendly layout on small screens (phones) */
+@media (max-width: 720px) {
+  body { padding: 12px; }
+  .device { padding: 20px 18px; border-radius: 12px; }
+  .brand { font-size: 24px; }
+  .brand::before { font-size: 9px; margin-right: 10px; padding: 3px 8px; }
+  .version-tag { font-size: 9px; }
+  .main-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+    margin-bottom: 18px;
+  }
+  .encoder-column { order: 2; padding: 18px; }
+  .encoder-big { width: 100px; height: 100px; }
+  .encoder-big::after { transform-origin: 50% 42px; height: 20px; }
+  .oled { min-height: 240px; padding: 16px 18px 48px; font-size: 12px; }
+  .cells-grid { gap: 8px; }
+  .cell-note { font-size: 40px; }
+  .cell-accidental { font-size: 24px; top: -10px; }
+  .cell-sublabel { font-size: 8px; margin-top: 6px; }
+  .transport { gap: 8px; }
+  .btn { padding: 10px 14px; font-size: 10px; letter-spacing: 0.15em; }
+  .bottom-bar { grid-template-columns: 1fr; gap: 16px; }
+  .info-block { font-size: 9px; line-height: 1.7; }
+}
+
+.device {
+  max-width: 1200px;
+  margin: 0 auto;
+  background: linear-gradient(180deg, var(--panel-metal) 0%, var(--panel-surface) 100%);
+  border: 2px solid var(--panel-edge);
+  border-radius: 18px;
+  padding: 36px 40px;
+  box-shadow:
+    0 24px 60px rgba(0,0,0,0.8),
+    inset 0 1px 0 rgba(255,255,255,0.05),
+    inset 0 -1px 0 rgba(0,0,0,0.6);
+  position: relative;
+}
+
+.device::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 40%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, transparent 100%);
+  border-radius: 18px 18px 0 0;
+  pointer-events: none;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-bottom: 24px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--panel-edge);
+}
+
+.brand {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 34px;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+}
+
+.brand::before {
+  content: 'F·A';
+  font-family: var(--font-label);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  color: var(--amber);
+  letter-spacing: 0.3em;
+  margin-right: 16px;
+  padding: 4px 10px;
+  border: 1px solid var(--amber-dim);
+  border-radius: 3px;
+  vertical-align: middle;
+  position: relative;
+  top: -3px;
+}
+
+.version-tag {
+  font-size: 10px;
+  color: var(--ink-dim);
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+}
+
+.version-tag .ws-status {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--warn);
+  margin-left: 12px;
+  vertical-align: middle;
+  transition: background 200ms ease;
+}
+
+.version-tag .ws-status.connected { background: var(--success); box-shadow: 0 0 8px var(--success); }
+.version-tag .ws-status.connecting { background: var(--amber); }
+
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr 220px;
+  gap: 32px;
+  margin-bottom: 28px;
+}
+
+.section {
+  background: var(--panel-surface);
+  border: 1px solid var(--panel-edge);
+  border-radius: 6px;
+  padding: 22px 24px;
+  position: relative;
+}
+
+.section-label {
+  position: absolute;
+  top: -7px;
+  left: 16px;
+  background: var(--panel-metal);
+  padding: 0 10px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+}
+
+.oled {
+  background: var(--oled-bg);
+  border: 1px solid var(--panel-edge);
+  border-radius: 4px;
+  padding: 20px 22px 56px;
+  color: var(--oled-ink);
+  font-family: var(--font-label);
+  font-size: 13px;
+  line-height: 1.7;
+  box-shadow:
+    inset 0 0 30px rgba(90, 169, 165, 0.08),
+    inset 0 2px 6px rgba(0,0,0,0.8);
+  position: relative;
+  min-height: 290px;
+}
+
+.oled::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent 0px, transparent 2px,
+    rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 3px);
+  pointer-events: none;
+  border-radius: 4px;
+}
+
+.oled-content { position: relative; z-index: 1; }
+
+.oled-title {
+  font-size: 10px;
+  color: var(--oled-dim);
+  letter-spacing: 0.35em;
+  font-weight: 500;
+  margin-bottom: 14px;
+  text-transform: uppercase;
+}
+
+.oled-menu { font-family: var(--font-label); }
+
+.oled-menu-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0 2px 18px;
+  color: var(--oled-dim);
+  position: relative;
+}
+
+.oled-menu-row.selected {
+  color: var(--oled-bright);
+  text-shadow: 0 0 4px var(--oled-bright);
+}
+
+.oled-menu-row.selected::before {
+  content: '›';
+  color: var(--amber-glow);
+  position: absolute;
+  left: 0;
+}
+
+.oled-divider {
+  border-top: 1px dashed var(--oled-dim);
+  margin: 10px 0;
+  opacity: 0.4;
+}
+
+.oled-chord {
+  font-size: 18px;
+  text-align: center;
+  letter-spacing: 0.03em;
+  font-family: var(--font-serif);
+  font-style: italic;
+  color: var(--amber-glow);
+  margin: 2px 0;
+}
+
+.oled-bar {
+  text-align: center;
+  font-size: 10px;
+  color: var(--oled-dim);
+  letter-spacing: 0.2em;
+  margin-top: 2px;
+}
+
+/* Edit Mode */
+.oled.edit-mode .edit-view { display: block; }
+.oled.edit-mode .nav-view  { display: none; }
+.edit-view { display: none; }
+
+.edit-header {
+  font-size: 10px;
+  color: var(--oled-dim);
+  letter-spacing: 0.35em;
+  margin-bottom: 6px;
+}
+
+.edit-param-name {
+  font-size: 13px;
+  color: var(--amber);
+  letter-spacing: 0.25em;
+  margin-bottom: 28px;
+}
+
+.edit-value {
+  font-family: var(--font-serif);
+  font-size: 42px;
+  color: var(--oled-bright);
+  text-align: center;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 12px var(--oled-bright);
+  line-height: 1;
+  margin: 14px 0 22px;
+}
+
+.edit-hint {
+  font-size: 10px;
+  color: var(--oled-dim);
+  letter-spacing: 0.2em;
+  text-align: center;
+  margin-top: 20px;
+}
+
+.edit-arrow {
+  color: var(--amber-dim);
+  font-size: 20px;
+  vertical-align: middle;
+  margin: 0 14px;
+}
+
+.mood-indicator {
+  position: absolute;
+  bottom: 18px;
+  left: 22px;
+  right: 22px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 9px;
+  color: var(--oled-dim);
+  letter-spacing: 0.2em;
+  z-index: 2;
+}
+
+.mood-indicator .mood-bar {
+  flex: 1;
+  height: 2px;
+  background: var(--oled-dim);
+  position: relative;
+  opacity: 0.4;
+}
+
+.mood-indicator .mood-fill {
+  position: absolute;
+  top: 0; left: 0;
+  height: 100%;
+  background: var(--oled-bright);
+  width: 50%;
+  box-shadow: 0 0 4px var(--oled-bright);
+  opacity: 1;
+}
+
+/* Single Encoder */
+.encoder-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 24px;
+  background: var(--panel-surface);
+  border: 1px solid var(--panel-edge);
+  border-radius: 6px;
+  position: relative;
+}
+
+.encoder-big {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #4a4e55 0%, #1c1e22 60%, #0a0b0d 100%);
+  border: 2px solid var(--panel-edge);
+  cursor: grab;
+  position: relative;
+  box-shadow:
+    0 8px 20px rgba(0,0,0,0.6),
+    inset 0 2px 0 rgba(255,255,255,0.1);
+  transition: box-shadow 120ms ease, transform 120ms ease;
+  --rot: 0deg;
+}
+
+.encoder-big:active { cursor: grabbing; }
+
+.encoder-big::after {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%) rotate(var(--rot));
+  transform-origin: 50% 50px;
+  width: 4px;
+  height: 24px;
+  background: var(--amber);
+  border-radius: 2px;
+  box-shadow: 0 0 8px var(--amber-glow);
+  transition: transform 80ms ease;
+}
+
+.encoder-big.pushed {
+  transform: translateY(2px);
+  box-shadow:
+    0 4px 10px rgba(0,0,0,0.8),
+    inset 0 2px 8px rgba(0,0,0,0.6),
+    0 0 24px rgba(226, 166, 60, 0.6);
+}
+
+.encoder-ring {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 1px solid var(--panel-edge);
+  pointer-events: none;
+}
+
+.encoder-mode-label {
+  font-size: 10px;
+  color: var(--amber);
+  letter-spacing: 0.25em;
+  font-weight: 500;
+}
+
+.encoder-instruction {
+  font-size: 9px;
+  color: var(--ink-dim);
+  letter-spacing: 0.2em;
+  text-align: center;
+  line-height: 1.6;
+  margin-top: 4px;
+}
+
+/* Cells */
+.cells-section { margin-top: 16px; }
+
+.cells-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+
+.cell {
+  aspect-ratio: 1.1 / 1;
+  background: radial-gradient(circle at 30% 30%, #2f3338 0%, #1a1c1f 60%, #0d0e10 100%);
+  border: 1px solid var(--panel-edge);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+  transition: all 80ms ease;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04);
+  overflow: hidden;
+}
+
+.cell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(226, 166, 60, 0.0) 0%, transparent 70%);
+  transition: background 100ms ease;
+  pointer-events: none;
+}
+
+.cell-note-wrap {
+  display: flex;
+  align-items: baseline;
+  line-height: 1;
+}
+
+.cell-note {
+  font-family: var(--font-serif);
+  font-size: 52px;
+  font-weight: 400;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.cell-accidental {
+  font-family: var(--font-serif);
+  font-size: 32px;
+  color: var(--ink-dim);
+  margin-left: 4px;
+  position: relative;
+  top: -14px;
+}
+
+.cell-sublabel {
+  font-size: 9px;
+  color: var(--ink-dim);
+  letter-spacing: 0.25em;
+  margin-top: 10px;
+  font-weight: 500;
+}
+
+.cell.active {
+  background: radial-gradient(circle at 30% 30%, #3d4147 0%, #1a1c1f 60%, #0d0e10 100%);
+  border-color: var(--amber);
+  box-shadow:
+    0 0 20px rgba(226, 166, 60, 0.5),
+    0 3px 10px rgba(0,0,0,0.5),
+    inset 0 0 12px rgba(226, 166, 60, 0.2);
+}
+
+.cell.active .cell-note {
+  color: var(--amber-glow);
+  text-shadow: 0 0 10px rgba(255, 207, 122, 0.5);
+}
+
+.cell.active::before {
+  background: radial-gradient(circle at 50% 50%, rgba(226, 166, 60, 0.15) 0%, transparent 70%);
+}
+
+.cell.shifted .cell-sublabel::after {
+  content: ' · UP';
+  color: var(--teal);
+}
+
+/* Modifiers */
+.transport {
+  display: flex;
+  gap: 14px;
+  justify-content: flex-start;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.btn {
+  font-family: var(--font-label);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  padding: 12px 22px;
+  background: linear-gradient(180deg, #2e3137 0%, #1a1c1f 100%);
+  border: 1px solid var(--panel-edge);
+  border-radius: 4px;
+  color: var(--ink-dim);
+  cursor: pointer;
+  transition: all 80ms ease;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
+  position: relative;
+}
+
+.btn:hover { color: var(--ink); border-color: var(--amber-dim); }
+.btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.6), inset 0 1px 3px rgba(0,0,0,0.4);
+}
+
+.btn.active {
+  color: var(--amber-glow);
+  border-color: var(--amber);
+  background: linear-gradient(180deg, #3a3024 0%, #221a10 100%);
+  box-shadow: 0 0 12px rgba(226, 166, 60, 0.3), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.btn .led {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+  margin-right: 8px;
+  vertical-align: middle;
+  transition: all 80ms ease;
+}
+
+.btn.active .led {
+  background: var(--amber-glow);
+  box-shadow: 0 0 6px var(--amber-glow);
+}
+
+/* Info */
+.bottom-bar {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--panel-edge);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  align-items: start;
+}
+
+.info-block {
+  font-size: 10px;
+  color: var(--ink-dim);
+  letter-spacing: 0.12em;
+  line-height: 1.9;
+}
+
+.info-block strong { color: var(--amber); font-weight: 700; }
+.info-block code {
+  color: var(--teal);
+  font-size: 10px;
+  background: var(--panel-deep);
+  padding: 1px 6px;
+  border-radius: 2px;
+}
+
+</style>
+</head>
+<body>
+
+<div class="device">
+
+  <div class="header">
+    <div class="brand">Field Ambience</div>
+    <div class="version-tag">
+      v29-a — MINIMAL HARDWARE
+      <span class="ws-status" id="wsStatus"></span>
+    </div>
+  </div>
+
+  <!-- OLED + single Encoder -->
+  <div class="main-grid">
+
+    <div class="section" style="padding: 0; border: none; background: none;">
+      <div class="oled" id="oled">
+
+        <!-- Navigation mode -->
+        <div class="oled-content nav-view">
+          <div class="oled-title">FIELD AMBIENCE</div>
+          <div class="oled-menu" id="menuList"></div>
+          <div class="oled-divider"></div>
+          <div class="oled-chord" id="chordLine">I — C major</div>
+          <div class="oled-bar" id="barLine">BAR 1/2</div>
+        </div>
+
+        <!-- Edit mode -->
+        <div class="oled-content edit-view">
+          <div class="edit-header">EDIT</div>
+          <div class="edit-param-name" id="editName">KEY</div>
+          <div class="edit-value" id="editValue">
+            <span class="edit-arrow">◂</span>C<span class="edit-arrow">▸</span>
+          </div>
+          <div class="edit-hint">TURN TO CHANGE · PUSH TO EXIT</div>
+        </div>
+
+        <div class="mood-indicator">
+          <span>MOOD</span>
+          <div class="mood-bar"><div class="mood-fill" id="moodFill"></div></div>
+          <span id="moodValue">0.50</span>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="encoder-column">
+      <span class="section-label">NAV</span>
+      <div class="encoder-big" id="encMain">
+        <div class="encoder-ring"></div>
+      </div>
+      <div class="encoder-mode-label" id="encModeLabel">NAVIGATE</div>
+      <div class="encoder-instruction">
+        TURN TO SCROLL<br>
+        PUSH TO SELECT
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Cells -->
+  <div class="section cells-section">
+    <span class="section-label">NOTE CELLS</span>
+    <div class="cells-grid" id="cells"></div>
+  </div>
+
+  <!-- Modifiers -->
+  <div class="section" style="margin-top: 16px;">
+    <span class="section-label">MODIFIERS</span>
+    <div class="transport">
+      <button class="btn active" id="btnAuto"><span class="led"></span>AUTO-PLAY · ON</button>
+      <div style="width: 16px;"></div>
+      <button class="btn" id="btnShift"><span class="led"></span>SHIFT</button>
+      <button class="btn" id="btnHoldMode"><span class="led"></span>HOLD MODE</button>
+      <button class="btn" id="btnProgHold"><span class="led"></span>PROG FREEZE</button>
+    </div>
+  </div>
+
+  <div class="bottom-bar">
+    <div class="info-block">
+      <strong>MINIMAL HARDWARE</strong><br>
+      1 ENCODER W. PUSH · 5 CELL BUTTONS · 4 MODIFIER BUTTONS · OLED<br>
+      <br>
+      <strong>TOTAL COMPONENTS</strong><br>
+      10 CONTROLS · DOWN FROM 15<br>
+      GPIO BUDGET: ~14 PINS W. EXPANDER<br>
+      DIMENSIONS TBD (~130 × 80 × 24 mm PROPOSAL)
+    </div>
+    <div class="info-block">
+      <strong>NAVIGATION</strong><br>
+      TURN ENCODER → NAVIGATE MENU<br>
+      PUSH → ENTER EDIT MODE<br>
+      TURN IN EDIT → CHANGE VALUE<br>
+      PUSH AGAIN → BACK TO NAV<br>
+      <br>
+      <strong>KEYBOARD</strong><br>
+      ARROW KEYS = ENCODER · SPACE = PUSH · 1-5 = CELLS
+    </div>
+  </div>
+
+</div>
+
+<script>
+// =====================================================================
+// Field Ambience Panel v29-a minimal
+// =====================================================================
+
+// Determine WebSocket URL: if the page was loaded from a network address
+// (e.g. a phone connecting to the Mac's LAN IP), use that host; otherwise localhost.
+const WS_URL = (() => {
+  const host = (location.hostname && location.hostname !== '' && location.protocol !== 'file:')
+    ? location.hostname
+    : '127.0.0.1';
+  return `ws://${host}:8765`;
+})();
+let ws = null;
+let wsReconnectTimer = null;
+
+const KEYS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+const KEY_MIDI = [60, 62, 64, 65, 67, 69, 71];
+const MODES = ['IONIAN', 'DORIAN', 'PHRYGIAN', 'LYDIAN', 'MIXOLYDIAN', 'AEOLIAN', 'LOCRIAN'];
+const PROGS = ['I-V-vi-IV', 'I-IV-V-I', 'i-VI-III-VII', 'i-iv-VI-V'];
+
+const SCALE_INTERVALS = {
+  IONIAN:     [0, 2, 4, 5, 7, 9, 11],
+  DORIAN:     [0, 2, 3, 5, 7, 9, 10],
+  PHRYGIAN:   [0, 1, 3, 5, 7, 8, 10],
+  LYDIAN:     [0, 2, 4, 6, 7, 9, 11],
+  MIXOLYDIAN: [0, 2, 4, 5, 7, 9, 10],
+  AEOLIAN:    [0, 2, 3, 5, 7, 8, 10],
+  LOCRIAN:    [0, 1, 3, 5, 6, 8, 10]
+};
+
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+const state = {
+  keyIdx: 0,
+  mode: 0,
+  prog: -1,
+  tempo: 72,
+  mood: 0.5,
+  shifted: false,
+  holdMode: false,
+  autoPlay: true,
+  progFreeze: false,
+  menuMode: 'nav',
+  cursorIdx: 0,
+};
+
+function toTitle(s) { return s.charAt(0) + s.slice(1).toLowerCase(); }
+
+const MENU = [
+  { key: 'KEY',   get: () => KEYS[state.keyIdx],
+                  range: 7,   read: () => state.keyIdx,
+                  setByIdx: (i) => { state.keyIdx = i; sendOsc('/fam/key', [KEY_MIDI[i]]); } },
+  { key: 'MODE',  get: () => toTitle(MODES[state.mode]),
+                  range: 7,   read: () => state.mode,
+                  setByIdx: (i) => { state.mode = i; sendOsc('/fam/mode', [i]); rebuildCells(); } },
+  { key: 'PROG',  get: () => state.prog < 0 ? 'AUTO' : PROGS[state.prog],
+                  range: 5,   read: () => state.prog + 1,
+                  setByIdx: (i) => { state.prog = i - 1; sendOsc('/fam/prog', [state.prog]); } },
+  { key: 'TEMPO', get: () => Math.round(state.tempo) + ' BPM',
+                  range: 101, read: () => Math.round(state.tempo) - 40,
+                  setByIdx: (i) => { state.tempo = 40 + i; sendOsc('/fam/tempo', [state.tempo]); } },
+  { key: 'MOOD',  get: () => state.mood.toFixed(2),
+                  range: 101, read: () => Math.round(state.mood * 100),
+                  setByIdx: (i) => { state.mood = i / 100; sendOsc('/fam/mood', [state.mood]); updateMoodIndicator(); } }
+];
+
+function chordAtDegree(degree) {
+  const intervals = SCALE_INTERVALS[MODES[state.mode]];
+  const d = degree - 1;
+  const i1 = intervals[d % 7];
+  const i3 = intervals[(d + 2) % 7];
+  const i5 = intervals[(d + 4) % 7];
+  const octShift = Math.floor(d / 7) * 12;
+  const rootMidi = KEY_MIDI[state.keyIdx];
+  return [rootMidi + i1 + octShift, rootMidi + i3 + octShift, rootMidi + i5 + octShift];
+}
+
+function midiToNoteName(midi) {
+  const n = ((midi % 12) + 12) % 12;
+  return NOTE_NAMES[n];
+}
+
+function chordQuality(degree) {
+  const ch = chordAtDegree(degree);
+  const third = ch[1] - ch[0];
+  const fifth = ch[2] - ch[0];
+  if (fifth === 6) return 'dim';
+  if (third === 3) return 'minor';
+  if (third === 4) return 'major';
+  return '';
+}
+
+function currentChordDescription() {
+  const ch = chordAtDegree(1);
+  const root = midiToNoteName(ch[0]);
+  const q = chordQuality(1);
+  return `I — ${root} ${q}`;
+}
+
+function connectWS() {
+  try {
+    ws = new WebSocket(WS_URL);
+    setWsStatus('connecting');
+  } catch (e) { scheduleReconnect(); return; }
+
+  ws.onopen = () => {
+    setWsStatus('connected');
+    setTimeout(() => {
+      sendOsc('/fam/start', []);
+      sendOsc('/fam/auto', [state.autoPlay ? 1 : 0]);
+    }, 150);
+  };
+  ws.onclose = () => { setWsStatus('disconnected'); scheduleReconnect(); };
+  ws.onerror = () => {};
+  ws.onmessage = (ev) => {
+    try {
+      const msg = JSON.parse(ev.data);
+      if (msg.type === 'state') {}
+    } catch (e) {}
+  };
+}
+
+function scheduleReconnect() {
+  if (wsReconnectTimer) return;
+  wsReconnectTimer = setTimeout(() => { wsReconnectTimer = null; connectWS(); }, 2000);
+}
+
+function setWsStatus(s) {
+  document.getElementById('wsStatus').className = 'ws-status ' + s;
+}
+
+function sendOsc(addr, args) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'osc', addr, args: args || [] }));
+  }
+}
+
+function renderMenu() {
+  const list = document.getElementById('menuList');
+  list.innerHTML = '';
+  MENU.forEach((item, i) => {
+    const row = document.createElement('div');
+    row.className = 'oled-menu-row' + (i === state.cursorIdx ? ' selected' : '');
+    row.innerHTML = `<span>${item.key}</span><span>${item.get()}</span>`;
+    list.appendChild(row);
+  });
+  document.getElementById('chordLine').textContent = currentChordDescription();
+}
+
+function renderEditMode() {
+  const item = MENU[state.cursorIdx];
+  document.getElementById('editName').textContent = item.key;
+  document.getElementById('editValue').innerHTML =
+    `<span class="edit-arrow">◂</span>${item.get()}<span class="edit-arrow">▸</span>`;
+}
+
+function refreshDisplay() {
+  const oled = document.getElementById('oled');
+  if (state.menuMode === 'edit') {
+    oled.classList.add('edit-mode');
+    renderEditMode();
+  } else {
+    oled.classList.remove('edit-mode');
+    renderMenu();
+  }
+  document.getElementById('encModeLabel').textContent =
+    state.menuMode === 'edit' ? 'EDIT · ' + MENU[state.cursorIdx].key : 'NAVIGATE';
+
+  let norm;
+  if (state.menuMode === 'edit') {
+    const item = MENU[state.cursorIdx];
+    norm = item.read() / Math.max(1, item.range - 1);
+  } else {
+    norm = state.cursorIdx / Math.max(1, MENU.length - 1);
+  }
+  const deg = (norm * 270) - 135;
+  document.getElementById('encMain').style.setProperty('--rot', deg + 'deg');
+}
+
+function updateMoodIndicator() {
+  document.getElementById('moodFill').style.width = (state.mood * 100) + '%';
+  document.getElementById('moodValue').textContent = state.mood.toFixed(2);
+}
+
+function rebuildCells() {
+  const grid = document.getElementById('cells');
+  grid.innerHTML = '';
+  for (let i = 0; i < 5; i++) {
+    const degree = i + 1;
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.degree = degree;
+
+    const ch = chordAtDegree(degree);
+    const rootName = midiToNoteName(ch[0]);
+    const quality = chordQuality(degree);
+
+    const noteChar = rootName.charAt(0);
+    const accidental = rootName.length > 1 ? rootName.charAt(1) : '';
+
+    cell.innerHTML = `
+      <div class="cell-note-wrap">
+        <span class="cell-note">${noteChar}</span>
+        ${accidental ? `<span class="cell-accidental">${accidental}</span>` : ''}
+      </div>
+      <div class="cell-sublabel">${quality ? quality.toUpperCase() : 'CHORD'}</div>
+    `;
+
+    const onDown = (e) => {
+      e.preventDefault();
+      cell.classList.add('active');
+      const shifted = state.shifted;
+      const degreeEffective = shifted ? degree + 5 : degree;
+      if (state.holdMode) {
+        sendOsc('/fam/hold', [degreeEffective, 1]);
+      } else {
+        sendOsc('/fam/cell', [degreeEffective, 0, 1.0]);
+      }
+    };
+    const onUp = () => { cell.classList.remove('active'); };
+
+    cell.addEventListener('mousedown', onDown);
+    cell.addEventListener('mouseup', onUp);
+    cell.addEventListener('mouseleave', onUp);
+    cell.addEventListener('touchstart', onDown, { passive: false });
+    cell.addEventListener('touchend', onUp);
+    grid.appendChild(cell);
+  }
+  document.getElementById('chordLine').textContent = currentChordDescription();
+}
+
+// Single encoder interaction
+(function setupEncoder() {
+  const enc = document.getElementById('encMain');
+  let dragging = false;
+  let startY = 0;
+  let didDrag = false;
+  let lastDeltaSent = 0;
+  const DRAG_PER_STEP = 18;
+
+  const onDown = (e) => {
+    e.preventDefault();
+    dragging = true;
+    didDrag = false;
+    const ev = e.touches ? e.touches[0] : e;
+    startY = ev.clientY;
+    lastDeltaSent = 0;
+    enc.classList.add('pushed');
+  };
+
+  const onMove = (e) => {
+    if (!dragging) return;
+    const ev = e.touches ? e.touches[0] : e;
+    const accumulatedY = startY - ev.clientY;
+    if (Math.abs(accumulatedY) >= 4) didDrag = true;
+
+    const deltaSteps = Math.trunc(accumulatedY / DRAG_PER_STEP);
+    const newSteps = deltaSteps - lastDeltaSent;
+    if (newSteps !== 0) {
+      applyEncoderDelta(newSteps);
+      lastDeltaSent = deltaSteps;
+    }
+  };
+
+  const onUp = () => {
+    if (!dragging) return;
+    dragging = false;
+    enc.classList.remove('pushed');
+    if (!didDrag) toggleMenuMode();
+  };
+
+  enc.addEventListener('mousedown', onDown);
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+  enc.addEventListener('touchstart', onDown, { passive: false });
+  window.addEventListener('touchmove', onMove, { passive: false });
+  window.addEventListener('touchend', onUp);
+})();
+
+function applyEncoderDelta(steps) {
+  if (state.menuMode === 'nav') {
+    let ni = state.cursorIdx - steps;
+    ni = Math.max(0, Math.min(MENU.length - 1, ni));
+    if (ni !== state.cursorIdx) {
+      state.cursorIdx = ni;
+      refreshDisplay();
+    }
+  } else {
+    const item = MENU[state.cursorIdx];
+    let ni = item.read() + steps;
+    ni = Math.max(0, Math.min(item.range - 1, ni));
+    if (ni !== item.read()) {
+      item.setByIdx(ni);
+      refreshDisplay();
+    }
+  }
+}
+
+function toggleMenuMode() {
+  state.menuMode = (state.menuMode === 'nav') ? 'edit' : 'nav';
+  refreshDisplay();
+}
+
+// Modifier buttons
+document.getElementById('btnAuto').onclick = () => {
+  state.autoPlay = !state.autoPlay;
+  sendOsc('/fam/auto', [state.autoPlay ? 1 : 0]);
+  const btn = document.getElementById('btnAuto');
+  btn.classList.toggle('active', state.autoPlay);
+  btn.innerHTML = `<span class="led"></span>AUTO-PLAY · ${state.autoPlay ? 'ON' : 'OFF'}`;
+};
+
+(function setupShift() {
+  const btn = document.getElementById('btnShift');
+  const onDown = (e) => {
+    if (e.preventDefault) e.preventDefault();
+    state.shifted = true;
+    btn.classList.add('active');
+    updateShiftCells();
+  };
+  const onUp = () => {
+    state.shifted = false;
+    btn.classList.remove('active');
+    updateShiftCells();
+  };
+  btn.addEventListener('mousedown', onDown);
+  btn.addEventListener('mouseup', onUp);
+  btn.addEventListener('mouseleave', onUp);
+  btn.addEventListener('touchstart', onDown, { passive: false });
+  btn.addEventListener('touchend', onUp);
+})();
+
+function updateShiftCells() {
+  document.querySelectorAll('.cell').forEach(c => c.classList.toggle('shifted', state.shifted));
+}
+
+document.getElementById('btnHoldMode').onclick = () => {
+  state.holdMode = !state.holdMode;
+  document.getElementById('btnHoldMode').classList.toggle('active', state.holdMode);
+};
+
+document.getElementById('btnProgHold').onclick = () => {
+  state.progFreeze = !state.progFreeze;
+  sendOsc('/fam/holdflag', [state.progFreeze ? 1 : 0]);
+  document.getElementById('btnProgHold').classList.toggle('active', state.progFreeze);
+};
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'ArrowUp')   { e.preventDefault(); applyEncoderDelta(1); }
+  if (e.key === 'ArrowDown') { e.preventDefault(); applyEncoderDelta(-1); }
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    toggleMenuMode();
+  }
+  if (e.key >= '1' && e.key <= '5') {
+    const degree = parseInt(e.key);
+    const degreeEffective = state.shifted ? degree + 5 : degree;
+    if (state.holdMode) {
+      sendOsc('/fam/hold', [degreeEffective, 1]);
+    } else {
+      sendOsc('/fam/cell', [degreeEffective, 0, 1.0]);
+    }
+    const cell = document.querySelector(`.cell[data-degree="${degree}"]`);
+    if (cell) {
+      cell.classList.add('active');
+      setTimeout(() => cell.classList.remove('active'), 150);
+    }
+  }
+});
+
+// Initialize
+rebuildCells();
+refreshDisplay();
+updateMoodIndicator();
+connectWS();
+
+</script>
+</body>
+</html>
