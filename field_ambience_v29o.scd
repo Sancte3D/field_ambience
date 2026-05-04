@@ -222,8 +222,9 @@ s.waitForBoot({
 	                        fenvSustain = 0.6, fenvAmount = 0.5,
 	                        // v29-n: live brightness offset (lag-smoothed for click-free changes)
 	                        cutoffOffset = 0,
-	                        // v29-o: tape-wow pitch drift (very slow, ±3 cent)
-	                        wowRate = 0.18, wowDepth = 0.003|
+	                        // v29-o-tuned: tape-wow halved (±2.5 cent instead of ±5)
+	                        // because too much modulation at once felt restless.
+	                        wowRate = 0.18, wowDepth = 0.0015|
 		var freqL, freqR, freqLDrift, freqRDrift, sawL, sawR, sig;
 		var ampEnv, fenvControl, cutoffL, cutoffR, chorus;
 		var sawWeight, pulseWeight;
@@ -322,8 +323,9 @@ s.waitForBoot({
 	                         freq = 55, amp = 0.18, gate = 1,
 	                         attack = 2.0, release = 2.5,
 	                         lpCutoff = 200,
-	                         // v29-o: very slow amplitude breathing
-	                         breathRate = 0.07, breathDepth = 0.18|
+	                         // v29-o-tuned: gentler breathing — 0.04Hz (~25s cycle)
+	                         // and only 8% depth so it's a presence, not a pulse.
+	                         breathRate = 0.04, breathDepth = 0.08|
 		var ampEnv, sig, sub, breath;
 
 		ampEnv = EnvGen.ar(
@@ -360,8 +362,8 @@ s.waitForBoot({
 	SynthDef(\famDeepBass, { |out = 0, verbOut = 0, verbSend = 0.08,
 	                          freq = 110, amp = 0.20, gate = 1,
 	                          attack = 3.0, release = 4.0,
-	                          lpCutoff = 350, lpRes = 0.15,
-	                          drive = 0.15|
+	                          lpCutoff = 280, lpRes = 0.10,
+	                          drive = 0.05|
 		var ampEnv, sig, driveLag;
 
 		ampEnv = EnvGen.ar(
@@ -372,23 +374,22 @@ s.waitForBoot({
 
 		driveLag = Lag.kr(drive, 0.4);
 
-		// Sine fundamental + tame triangle 2nd + faint saw 3rd for harmonic body
-		// All three at musical ratios -- never dissonant
+		// v29-o-tuned: simpler harmonic content. Removed Saw 3rd (was nasal/honky
+		// and made the bass sound like a boat-horn). Just sine + tame triangle.
 		sig = SinOsc.ar(freq)
-		    + (LFTri.ar(freq * 2) * 0.12)
-		    + (Saw.ar(freq * 3) * 0.04);
+		    + (LFTri.ar(freq * 2) * 0.06);
 
-		// Soft tube-style saturation (always-on, drive-amount controlled)
-		sig = (sig * (1 + driveLag * 1.5)).tanh / (1 + driveLag * 0.6);
+		// Very gentle tube-style saturation (drive default 0.05 = barely audible)
+		sig = (sig * (1 + driveLag * 1.2)).tanh / (1 + driveLag * 0.5);
 
-		// Lowpass — keeps the upper saw harmonic in check, no fizz
+		// Lowpass tightened (was 350, now 280) for less midrange honk
 		sig = RLPF.ar(sig, lpCutoff, lpRes);
 
 		// High-pass at 50Hz to avoid mud below the SubBass region
 		sig = HPF.ar(sig, 50);
 
 		sig = sig * ampEnv * amp;
-		sig = sig ! 2;  // mono center
+		sig = sig ! 2;
 
 		Out.ar(out, sig);
 		Out.ar(verbOut, sig * verbSend);
@@ -442,17 +443,12 @@ s.waitForBoot({
 		breathL = breathL * lfoBreath * 0.55 * (1 + lfoStereo);
 		breathR = breathR * lfoBreath * 0.55 * (1 - lfoStereo);
 
-		// LAYER 3: hi sparkle (occasional far-away glints, very sparse)
-		// Pink noise → high BPF → very slow gating to make it appear/disappear
-		// Like distant raindrops, but never melodic, never percussive
-		lfoSparkle = SinOsc.kr(0.018, Rand(0, 2pi)).range(0, 1).pow(3);
-		sparkleL = BPF.ar(PinkNoise.ar(), 3500, 0.6) * lfoSparkle * 0.10;
-		sparkleR = BPF.ar(PinkNoise.ar(), 4200, 0.6)
-			* SinOsc.kr(0.022, pi/4).range(0, 1).pow(3) * 0.10;
-
-		// Mix all three layers per channel
-		sigL = rumbleL + breathL + sparkleL;
-		sigR = rumbleR + breathR + sparkleR;
+		// v29-o-tuned: SPARKLE LAYER REMOVED. The "distant raindrops" felt
+		// like something was always-just-about-to-happen, restless. Constitution
+		// rule: ambience should be a still surface, not a perky layer.
+		// Mix only rumble + breath now.
+		sigL = rumbleL + breathL;
+		sigR = rumbleR + breathR;
 
 		// Soft global LPF (warmth, no fizz)
 		sigL = LPF.ar(sigL, 4500);
@@ -1557,9 +1553,9 @@ s.waitForBoot({
 		]);
 
 		~famCellTapVoices[degree.asSymbol] = newSynth;
-		// v29-o: side-chain duck the texture layer briefly so the cell
-		// accent has room. -40% amp for 250ms, then ramps back over 1s.
-		~famDuckTexture.();
+		// v29-o-tuned: cell-tap ducking disabled. Was distracting — every tap
+		// caused a noticeable drop in the texture, made the ambience feel
+		// "reactive" instead of contemplative. Cell-hold still ducks (gentler).
 		("FAM cell-tap: degree=" ++ degree ++ " midi=" ++ midi
 		 ++ " (sustained until /fam/celloff)").postln;
 	}, "/fam/cell");
@@ -1653,8 +1649,10 @@ s.waitForBoot({
 		if(~famCellHolds.size == 1) {
 			~famLastVoicing = chord;
 		};
-		// v29-o: side-chain duck (deeper duck for hold = cell hold is bigger)
-		~famDuckTexture.(0.3, 0.4);  // duck to 30%, recover over 0.4s
+		// v29-o-tuned: gentler hold-duck (was 0.3, 0.4 — too dramatic).
+		// Just 25% reduction over 1.2s — barely noticeable but gives the
+		// hold-chord a tiny bit of room without pumping the ambience.
+		~famDuckTexture.(0.75, 1.2);
 		("FAM hold-on: degree=" ++ degree ++ " chord=" ++ chord
 		 ++ " (active holds: " ++ (~famCellHolds.keys.asArray) ++ ")").postln;
 	};
@@ -1904,8 +1902,8 @@ s.waitForBoot({
 		var subAmp, deepAmp, padReleaseScale;
 		~famDepth = val.clip(0.0, 1.0);
 		// Map 0..1 to bass amps. Default=0.5 maps to current values.
-		subAmp  = ~famDepth.linlin(0.0, 1.0, 0.10, 0.30);   // was 0.22 default
-		deepAmp = ~famDepth.linlin(0.0, 1.0, 0.06, 0.26);   // was 0.16 default
+		subAmp  = ~famDepth.linlin(0.0, 1.0, 0.06, 0.20);   // v29-o-tuned: less dominant
+		deepAmp = ~famDepth.linlin(0.0, 1.0, 0.04, 0.16);   // v29-o-tuned: less dominant
 		// Apply live to existing bass voices
 		if(~famSubBassVoice.notNil)  { ~famSubBassVoice.set(\amp, subAmp) };
 		if(~famDeepBassVoice.notNil) { ~famDeepBassVoice.set(\amp, deepAmp) };
@@ -1931,7 +1929,7 @@ s.waitForBoot({
 		// Map values that ~famSpawnPad will pick up for next pad spawn.
 		// Live-modifying current pad's fenv is not possible (already triggered).
 		~famBloomPadAttack    = ~famBloom.linlin(0.0, 1.0, 1.5, 7.0);
-		~famBloomFenvAmount   = ~famBloom.linlin(0.0, 1.0, 0.05, 0.45);
+		~famBloomFenvAmount   = ~famBloom.linlin(0.0, 1.0, 0.0, 0.30);
 		~famBloomReverbBoost  = ~famBloom.linlin(0.0, 1.0, -0.10, 0.20);
 		("FAM bloom: " ++ (~famBloom * 100).round(1) ++ "%"
 		 ++ "  attack=" ++ ~famBloomPadAttack.round(0.1)
@@ -1939,7 +1937,7 @@ s.waitForBoot({
 		 ++ "  verbBoost=" ++ ~famBloomReverbBoost.round(0.01)).postln;
 	};
 	~famBloomPadAttack    = 4.0;
-	~famBloomFenvAmount   = 0.25;
+	~famBloomFenvAmount   = 0.15;
 	~famBloomReverbBoost  = 0.0;
 
 	// v29-o: side-chain ducking for the texture layer. The famTexture SynthDef
@@ -2028,7 +2026,7 @@ s.waitForBoot({
 		// Amp now driven by ~famDepth macro (default 0.5 → amp=0.22).
 		~famSubBassVoice = Synth(\famSubBass, [
 			\freq,     (voiced.minItem - 24).midicps,
-			\amp,      ((~famDepth ? 0.5).linlin(0.0, 1.0, 0.10, 0.30)),
+			\amp,      ((~famDepth ? 0.5).linlin(0.0, 1.0, 0.06, 0.20)),
 			\gate,     1,
 			\attack,   3.0,
 			\release,  4.0,
@@ -2042,7 +2040,7 @@ s.waitForBoot({
 		// Sits between SubBass (sub region) and Pad (mid region) in the spectrum.
 		~famDeepBassVoice = Synth(\famDeepBass, [
 			\freq,     (voiced.minItem - 12).midicps,    // octave below pad
-			\amp,      ((~famDepth ? 0.5).linlin(0.0, 1.0, 0.06, 0.26)),
+			\amp,      ((~famDepth ? 0.5).linlin(0.0, 1.0, 0.04, 0.16)),
 			\gate,     1,
 			\attack,   2.5,
 			\release,  3.5,
@@ -2351,28 +2349,30 @@ s.waitForBoot({
 	"".postln;
 	"================================================================".postln;
 	" FIELD AMBIENCE v29-o ready.".postln;
+	"   Engine is IDLE. Nothing plays until you start it explicitly.".postln;
+	"".postln;
+	"   ★ Start the engine:  ~famStart.()".postln;
+	"   ★ Stop the engine:   ~famStop.()".postln;
+	"".postln;
 	"   ★ Sound Constitution applied: deep, dark, slow, harmonically".postln;
 	"     stable. Defaults: BPM=54, 8-bar chords, drive=0.18, dark.".postln;
-	"   ★ NEW: TEXTURE — three-layer field-recording-like atmosphere".postln;
-	"     (low rumble + mid breath + sparse hi sparkle)".postln;
-	"   ★ NEW: Two-layer BASS — SubBass (sine, 30-60Hz, breathing) +".postln;
-	"     DeepBass (sine+harmonics, 80-160Hz, drive-controlled body)".postln;
-	"   ★ NEW: Tape-wow pitch drift on pad voices (lo-fi character)".postln;
-	"   ★ NEW: Haas stereo on pad (huge perceived width)".postln;
-	"   ★ Pad-Bloom (ULTRA slow filter swell, no chaos)".postln;
-	"   ★ Reverb t60=4.5s, larger cinematic space".postln;
+	"   ★ Two-layer BASS — SubBass (sub region, gentle breathing) +".postln;
+	"     DeepBass (warm body, no harsh harmonics)".postln;
+	"   ★ Two-layer TEXTURE — rumble + breath (no perky sparkle)".postln;
+	"   ★ Tape-wow pitch drift on pad voices (subtle, not restless)".postln;
+	"   ★ Haas stereo on pad (huge perceived width)".postln;
+	"   ★ Pad-Bloom (subtle, tunable via /fam/bloom)".postln;
+	"   ★ Reverb default t60=4.5s (tunable via /fam/space)".postln;
 	"   ★ Constitutional Markov: only safe transitions, never vii".postln;
-	"   ★ Safe-range clamping on Brightness (no harsh > 4.2kHz)".postln;
 	"   ★ AUTO-Markov OFF by default (no random chord chaos)".postln;
 	("   Reverb backend: " ++ if(~famHasJPverb) { "JPverb (premium)" } { "FreeVerb2 (fallback)" }).postln;
 	"".postln;
-	"  ~famStart.()    to begin".postln;
-	"  ~famStop.()     to stop".postln;
-	"".postln;
-	" Recommended starting feel:".postln;
+	" Recommended starting feel after ~famStart.():".postln;
 	"  ~famSetDrive.(0.18)       warm body (also warms bass)".postln;
 	"  ~famSetBrightness.(-0.2)  slightly dark".postln;
 	"  ~famSetTexture.(0.45)     atmospheric bed".postln;
+	"  ~famSetDepth.(0.4)        moderate low-end".postln;
+	"  ~famSetBloom.(0.4)        subtle pad swell".postln;
 	"  ~famSetMasterVol.(0.8)".postln;
 	"".postln;
 	" More epic / cinematic:".postln;
